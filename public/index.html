@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SQL Explorer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: #1a1d27;
+      border-bottom: 1px solid #2d3148;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #a78bfa;
+    }
+    header span { font-size: 0.8rem; color: #64748b; }
+
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 220px;
+      background: #13151f;
+      border-right: 1px solid #2d3148;
+      overflow-y: auto;
+      padding: 12px 0;
+      flex-shrink: 0;
+    }
+    .sidebar h2 {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: #64748b;
+      padding: 0 14px 8px;
+    }
+    .table-item {
+      padding: 6px 14px;
+      cursor: pointer;
+      border-radius: 4px;
+      margin: 0 6px 2px;
+      transition: background .15s;
+    }
+    .table-item:hover { background: #1e2130; }
+    .table-item .tname {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #c4b5fd;
+    }
+    .table-item .tcols {
+      font-size: 0.7rem;
+      color: #475569;
+      margin-top: 2px;
+    }
+
+    /* ── Main ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .editor-area {
+      padding: 16px;
+      border-bottom: 1px solid #2d3148;
+      background: #11131c;
+    }
+
+    .editor-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .editor-toolbar label {
+      font-size: 0.75rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .presets {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .preset-btn {
+      background: #1e2130;
+      border: 1px solid #2d3148;
+      color: #94a3b8;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .preset-btn:hover { background: #2d3148; color: #c4b5fd; border-color: #6d28d9; }
+
+    textarea#sql {
+      width: 100%;
+      height: 130px;
+      background: #0d0f1a;
+      border: 1px solid #2d3148;
+      border-radius: 6px;
+      color: #e2e8f0;
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      padding: 10px 12px;
+      resize: vertical;
+      outline: none;
+      transition: border-color .2s;
+    }
+    textarea#sql:focus { border-color: #6d28d9; }
+
+    .run-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    #runBtn {
+      background: #6d28d9;
+      color: #fff;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    #runBtn:hover { background: #7c3aed; }
+    #runBtn:active { background: #5b21b6; }
+    #runBtn:disabled { background: #3b1f6d; cursor: not-allowed; }
+
+    #clearBtn {
+      background: transparent;
+      color: #64748b;
+      border: 1px solid #2d3148;
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    #clearBtn:hover { color: #94a3b8; border-color: #475569; }
+
+    #status { font-size: 0.8rem; color: #64748b; margin-left: auto; }
+    #status.ok  { color: #34d399; }
+    #status.err { color: #f87171; }
+
+    /* ── Results ── */
+    .results-area {
+      flex: 1;
+      overflow: auto;
+      padding: 16px;
+    }
+
+    .result-meta {
+      font-size: 0.78rem;
+      color: #64748b;
+      margin-bottom: 10px;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #334155;
+    }
+    .empty-state svg { margin-bottom: 12px; opacity: .4; }
+    .empty-state p { font-size: 0.9rem; }
+
+    .error-box {
+      background: #1f0f0f;
+      border: 1px solid #7f1d1d;
+      border-radius: 6px;
+      padding: 12px 16px;
+      color: #fca5a5;
+      font-family: monospace;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border-radius: 6px;
+      border: 1px solid #2d3148;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.83rem;
+    }
+    thead {
+      background: #1a1d27;
+      position: sticky;
+      top: 0;
+    }
+    th {
+      padding: 9px 14px;
+      text-align: left;
+      color: #a78bfa;
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      border-bottom: 1px solid #2d3148;
+      white-space: nowrap;
+    }
+    td {
+      padding: 8px 14px;
+      border-bottom: 1px solid #1a1d27;
+      color: #cbd5e1;
+      white-space: nowrap;
+    }
+    td.null { color: #475569; font-style: italic; }
+    tr:hover td { background: #161824; }
+    tr:last-child td { border-bottom: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
+    <ellipse cx="12" cy="6" rx="8" ry="3" stroke="#a78bfa" stroke-width="1.8"/>
+    <path d="M4 6v4c0 1.657 3.582 3 8 3s8-1.343 8-3V6" stroke="#a78bfa" stroke-width="1.8"/>
+    <path d="M4 10v4c0 1.657 3.582 3 8 3s8-1.343 8-3v-4" stroke="#a78bfa" stroke-width="1.8"/>
+    <path d="M4 14v4c0 1.657 3.582 3 8 3s8-1.343 8-3v-4" stroke="#a78bfa" stroke-width="1.8"/>
+  </svg>
+  <h1>SQL Explorer</h1>
+  <span>School Database &mdash; SQLite</span>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <h2>Tables</h2>
+    <div id="tableList">Loading&hellip;</div>
+  </aside>
+
+  <div class="main">
+    <div class="editor-area">
+      <div class="editor-toolbar">
+        <label>Query Editor</label>
+      </div>
+      <div class="presets" id="presets"></div>
+      <textarea id="sql" spellcheck="false" placeholder="SELECT * FROM School;"></textarea>
+      <div class="run-row">
+        <button id="runBtn">&#9654; Run</button>
+        <button id="clearBtn">Clear</button>
+        <span id="status"></span>
+      </div>
+    </div>
+
+    <div class="results-area" id="results">
+      <div class="empty-state">
+        <svg width="48" height="48" fill="none" viewBox="0 0 24 24">
+          <ellipse cx="12" cy="6" rx="8" ry="3" stroke="#334155" stroke-width="1.5"/>
+          <path d="M4 6v12c0 1.657 3.582 3 8 3s8-1.343 8-3V6" stroke="#334155" stroke-width="1.5"/>
+        </svg>
+        <p>Run a query to see results</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PRESETS = [
+  { label: 'All Schools',        sql: 'SELECT * FROM School;' },
+  { label: 'All Courses',        sql: 'SELECT c.CourseID, c.CourseName, l.LecturerName, c.StartDateTime, c.EndDateTime, c.Spaces\nFROM Course c\nJOIN Lecturer l ON c.LecturerID = l.LecturerID\nORDER BY c.StartDateTime;' },
+  { label: 'All Students',       sql: 'SELECT * FROM Student ORDER BY Surname;' },
+  { label: 'Dept Salary Cost',   sql: 'SELECT d.DepartmentName, SUM(l.Salary) AS AnnualSalaryCost\nFROM Department d\nINNER JOIN Lecturer l ON d.DepartmentID = l.DepartmentID\nGROUP BY d.DepartmentName\nORDER BY AnnualSalaryCost DESC;' },
+  { label: 'Courses by Month',   sql: "SELECT strftime('%m', c.StartDateTime) AS Month,\n       c.CourseName, d.DepartmentName\nFROM Course c\nINNER JOIN Lecturer l ON c.LecturerID = l.LecturerID\nINNER JOIN Department d ON l.DepartmentID = d.DepartmentID\nORDER BY Month, d.DepartmentName, c.CourseName;" },
+  { label: 'Bookings % Full',    sql: "SELECT c.CourseName,\n       COUNT(b.BookingID) AS Bookings,\n       c.Spaces,\n       ROUND(COUNT(b.BookingID) * 100.0 / c.Spaces, 1) AS PctFull\nFROM Course c\nLEFT JOIN Bookings b ON b.CourseID = c.CourseID\nWHERE c.Spaces IS NOT NULL AND c.Spaces > 0\nGROUP BY c.CourseID, c.CourseName, c.Spaces\nORDER BY PctFull DESC;" },
+  { label: 'Bookings by Gender', sql: 'SELECT sc.SchoolName, s.Gender, COUNT(b.BookingID) AS Bookings\nFROM Bookings b\nINNER JOIN Student s  ON b.StudentID = s.StudentID\nINNER JOIN Course c   ON b.CourseID  = c.CourseID\nINNER JOIN Lecturer l ON c.LecturerID = l.LecturerID\nINNER JOIN Department d ON l.DepartmentID = d.DepartmentID\nINNER JOIN School sc  ON d.SchoolID = sc.SchoolID\nGROUP BY sc.SchoolName, s.Gender\nORDER BY sc.SchoolName, s.Gender;' },
+  { label: 'Clashing Bookings',  sql: "SELECT DISTINCT\n  st.Forename || ' ' || st.Surname AS StudentName,\n  c1.CourseName AS Course1, c1.StartDateTime AS C1_Start, c1.EndDateTime AS C1_End,\n  c2.CourseName AS Course2, c2.StartDateTime AS C2_Start, c2.EndDateTime AS C2_End\nFROM Bookings b1\nINNER JOIN Course c1  ON b1.CourseID  = c1.CourseID\nINNER JOIN Bookings b2 ON b1.StudentID = b2.StudentID AND b1.CourseID < b2.CourseID\nINNER JOIN Course c2  ON b2.CourseID  = c2.CourseID\nINNER JOIN Student st ON b1.StudentID = st.StudentID\nWHERE c1.StartDateTime < c2.EndDateTime\n  AND c2.StartDateTime < c1.EndDateTime;" },
+];
+
+// Build preset buttons
+const presetsEl = document.getElementById('presets');
+PRESETS.forEach(p => {
+  const btn = document.createElement('button');
+  btn.className = 'preset-btn';
+  btn.textContent = p.label;
+  btn.onclick = () => {
+    document.getElementById('sql').value = p.sql;
+    runQuery();
+  };
+  presetsEl.appendChild(btn);
+});
+
+// Load table list
+async function loadTables() {
+  const res = await fetch('/api/tables');
+  const { tables } = await res.json();
+  const el = document.getElementById('tableList');
+  el.innerHTML = '';
+  tables.forEach(t => {
+    const div = document.createElement('div');
+    div.className = 'table-item';
+    div.innerHTML = `<div class="tname">${t.name}</div><div class="tcols">${t.columns.join(', ')}</div>`;
+    div.onclick = () => {
+      document.getElementById('sql').value = `SELECT * FROM ${t.name} LIMIT 50;`;
+      runQuery();
+    };
+    el.appendChild(div);
+  });
+}
+
+async function runQuery() {
+  const sql = document.getElementById('sql').value.trim();
+  if (!sql) return;
+
+  const runBtn = document.getElementById('runBtn');
+  const statusEl = document.getElementById('status');
+  const resultsEl = document.getElementById('results');
+
+  runBtn.disabled = true;
+  statusEl.className = '';
+  statusEl.textContent = 'Running\u2026';
+
+  const t0 = performance.now();
+  try {
+    const res = await fetch('/api/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql }),
+    });
+    const data = await res.json();
+    const elapsed = (performance.now() - t0).toFixed(1);
+
+    if (data.error) {
+      statusEl.className = 'err';
+      statusEl.textContent = 'Error';
+      resultsEl.innerHTML = `<div class="error-box">${escHtml(data.error)}</div>`;
+    } else if (data.message) {
+      statusEl.className = 'ok';
+      statusEl.textContent = `OK \u2014 ${elapsed}ms`;
+      resultsEl.innerHTML = `<div class="result-meta">${escHtml(data.message)}</div>`;
+    } else {
+      statusEl.className = 'ok';
+      statusEl.textContent = `${data.rowCount} row${data.rowCount !== 1 ? 's' : ''} \u2014 ${elapsed}ms`;
+      resultsEl.innerHTML = renderTable(data.columns, data.rows);
+    }
+  } catch (e) {
+    statusEl.className = 'err';
+    statusEl.textContent = 'Network error';
+    resultsEl.innerHTML = `<div class="error-box">${escHtml(e.message)}</div>`;
+  } finally {
+    runBtn.disabled = false;
+  }
+}
+
+function renderTable(columns, rows) {
+  if (!columns.length) return '<div class="result-meta">No columns returned.</div>';
+  const meta = `<div class="result-meta">${rows.length} row${rows.length !== 1 ? 's' : ''}</div>`;
+  const head = `<thead><tr>${columns.map(c => `<th>${escHtml(c)}</th>`).join('')}</tr></thead>`;
+  const body = `<tbody>${rows.map(row =>
+    `<tr>${columns.map(c => {
+      const v = row[c];
+      if (v === null || v === undefined) return '<td class="null">NULL</td>';
+      return `<td>${escHtml(String(v))}</td>`;
+    }).join('')}</tr>`
+  ).join('')}</tbody>`;
+  return `${meta}<div class="table-wrap"><table>${head}${body}</table></div>`;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('runBtn').addEventListener('click', runQuery);
+document.getElementById('clearBtn').addEventListener('click', () => {
+  document.getElementById('sql').value = '';
+  document.getElementById('status').textContent = '';
+  document.getElementById('status').className = '';
+  document.getElementById('results').innerHTML = `
+    <div class="empty-state">
+      <svg width="48" height="48" fill="none" viewBox="0 0 24 24">
+        <ellipse cx="12" cy="6" rx="8" ry="3" stroke="#334155" stroke-width="1.5"/>
+        <path d="M4 6v12c0 1.657 3.582 3 8 3s8-1.343 8-3V6" stroke="#334155" stroke-width="1.5"/>
+      </svg>
+      <p>Run a query to see results</p>
+    </div>`;
+});
+document.getElementById('sql').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runQuery(); }
+});
+
+loadTables();
+</script>
+</body>
+</html>
